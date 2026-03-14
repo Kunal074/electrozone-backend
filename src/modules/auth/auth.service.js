@@ -25,21 +25,29 @@ const generateTokens = (userId, role) => {
 
 // ── Send OTP (Twilio ya Console log development mein) ──
 const sendOTPToPhone = async (phone, otp) => {
-  if (process.env.NODE_ENV === "development") {
-    // Development mein console pe print karo
-    console.log(`\n📱 OTP for ${phone}: ${otp}\n`);
-    return;
+  // Always console log karo — Render logs mein dikhega
+  console.log(`\n📱 OTP for ${phone}: ${otp}\n`);
+
+  // Twilio sirf tab bhejo jab configured ho
+  if (
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    process.env.TWILIO_PHONE_NUMBER
+  ) {
+    try {
+      const twilio = require("twilio")(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      );
+      await twilio.messages.create({
+        body: `ElectroZone: Your OTP is ${otp}. Valid for 5 minutes.`,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to:   `+91${phone}`,
+      });
+    } catch (e) {
+      console.log("SMS send nahi hua:", e.message);
+    }
   }
-  // Production: Twilio se bhejo
-  const twilio = require("twilio")(
-    process.env.TWILIO_ACCOUNT_SID,
-    process.env.TWILIO_AUTH_TOKEN
-  );
-  await twilio.messages.create({
-    body: `ElectroZone: Your OTP is ${otp}. Valid for 5 minutes.`,
-    from: process.env.TWILIO_PHONE_NUMBER,
-    to: `+91${phone}`,
-  });
 };
 
 // ── Auth Service Methods ──
