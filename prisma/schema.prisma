@@ -1,0 +1,368 @@
+// prisma/schema.prisma
+// ElectroZone — Complete Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  STORE_OWNER
+  CUSTOMER
+  DELIVERY
+}
+
+enum ModelType {
+  OFFLINE   // Stock available — direct order
+  ONLINE    // Order on request — 3rd party se
+}
+
+enum Category {
+  SMARTPHONE
+  TV
+  AC
+  COOLER
+  AUDIO
+  HEADPHONES
+  FRIDGE
+  ACCESSORY
+}
+
+enum ConditionGrade {
+  LIKE_NEW
+  EXCELLENT
+  GOOD
+  FAIR
+  DAMAGED
+}
+
+enum FulfillmentType {
+  HOME_DELIVERY
+  STORE_PICKUP
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  UPI
+  CARD
+  NET_BANKING
+  COD
+  ADVANCE_50
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  REFUNDED
+}
+
+enum SubscriptionPlan {
+  FREE
+  BASIC
+  PREMIUM
+}
+
+// ─────────────────────────────────────────
+// USER MODEL
+// ─────────────────────────────────────────
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  phone          String    @unique
+  email          String?   @unique
+  password       String?   // Sirf store owner + admin ke liye
+  role           Role      @default(CUSTOMER)
+  isGuest        Boolean   @default(false)
+  isActive       Boolean   @default(true)
+
+  // OTP Login
+  otp            String?
+  otpExpiry      DateTime?
+
+  // Customer specific
+  savedAddresses Json?     // Array of address objects
+  wishlist       String[]  // Product IDs
+  priceAlerts    Json?     // [{modelName, targetPrice}]
+
+  // Relations
+  store          Store?    // Store owner ka store
+  orders         Order[]
+  reviews        Review[]
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lastLogin      DateTime?
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// STORE MODEL
+// ─────────────────────────────────────────
+
+model Store {
+  id               String           @id @default(cuid())
+  storeName        String
+  logo             String?          // Cloudinary URL
+  phone            String
+  whatsappNumber   String
+  address          String
+  city             String
+  pincode          String
+  latitude         Float?
+  longitude        Float?
+
+  // Delivery Settings
+  deliveryRadius   Float            @default(5)   // KM mein
+  deliveryCharge   Float            @default(49)
+  isCODAvailable   Boolean          @default(true)
+  codAdvanceAmount Float            @default(200) // COD pe advance
+
+  // Timings
+  openTime         String           @default("10:00")
+  closeTime        String           @default("20:00")
+  weeklyOff        String?          // "Sunday" ya "None"
+
+  // Approval
+  isApproved       Boolean          @default(false)
+  approvedAt       DateTime?
+
+  // Subscription
+  subscriptionPlan SubscriptionPlan @default(FREE)
+  subscriptionExpiry DateTime?
+
+  // Stats
+  rating           Float            @default(0)
+  totalReviews     Int              @default(0)
+  isActive         Boolean          @default(true)
+
+  // Relations
+  owner            User             @relation(fields: [ownerId], references: [id])
+  ownerId          String           @unique
+  products         Product[]
+  usedPhones       UsedPhone[]
+  orders           Order[]
+  reviews          Review[]
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@map("stores")
+}
+
+// ─────────────────────────────────────────
+// PRODUCT MODEL (New Phones + All Items)
+// ─────────────────────────────────────────
+
+model Product {
+  id            String      @id @default(cuid())
+  category      Category
+  brand         String
+  modelName     String
+  variant       String?     // "128GB Black", "256GB Blue"
+  modelType     ModelType   @default(OFFLINE)
+
+  // Pricing
+  price         Float
+  mrp           Float?
+
+  // Inventory
+  stock         Int         @default(0)  // 0 = out of stock. Online model pe null
+
+  // Media
+  images        String[]    // Cloudinary URLs — min 3
+
+  // Details
+  specs         Json?       // {ram, storage, battery, processor, display}
+  description   String?
+
+  // Featured Listing (Monetization)
+  isFeatured    Boolean     @default(false)
+  featuredExpiry DateTime?
+
+  isActive      Boolean     @default(true)
+
+  // Relations
+  store         Store       @relation(fields: [storeId], references: [id])
+  storeId       String
+  orderItems    OrderItem[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt  // "Last updated X hours ago" ke liye
+
+  @@map("products")
+}
+
+// ─────────────────────────────────────────
+// USED PHONE MODEL
+// ─────────────────────────────────────────
+
+model UsedPhone {
+  id                  String         @id @default(cuid())
+  brand               String
+  modelName           String
+  storage             String?        // "128GB", "256GB"
+  color               String?
+  ram                 String?        // "8GB", "12GB"
+
+  // Condition
+  conditionGrade      ConditionGrade
+  conditionDescription String?       // Store owner ki custom description
+
+  // Media — Min 4 photos mandatory
+  images              String[]
+
+  // Pricing
+  askingPrice         Float
+  isNegotiable        Boolean        @default(false)
+
+  // Details
+  warrantyLeft        String?        // "3 months", "No warranty"
+  accessories         String[]       // ["Box", "Charger", "Earphones"]
+  batteryHealth       Int?           // Percentage — iPhone ke liye
+
+  // Availability
+  isAvailable         Boolean        @default(true)
+  views               Int            @default(0)
+
+  // Relations
+  store               Store          @relation(fields: [storeId], references: [id])
+  storeId             String
+  orderItems          OrderItem[]
+
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@map("used_phones")
+}
+
+// ─────────────────────────────────────────
+// ORDER MODEL
+// ─────────────────────────────────────────
+
+model Order {
+  id              String          @id @default(cuid())
+
+  // Customer
+  customer        User?           @relation(fields: [customerId], references: [id])
+  customerId      String?         // Null agar guest
+  guestName       String?
+  guestPhone      String?
+
+  // Store
+  store           Store           @relation(fields: [storeId], references: [id])
+  storeId         String
+
+  // Items
+  items           OrderItem[]
+
+  // Fulfillment
+  fulfillmentType FulfillmentType @default(HOME_DELIVERY)
+  deliveryAddress Json?           // {name, phone, street, city, pincode, landmark}
+
+  // Status
+  status          OrderStatus     @default(PENDING)
+
+  // Payment
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus   @default(PENDING)
+  razorpayOrderId String?
+  razorpayPaymentId String?
+
+  // Amounts
+  subtotal        Float
+  deliveryCharge  Float           @default(0)
+  totalAmount     Float
+
+  // Delivery Person (Future)
+  deliveryPersonId String?
+  deliveryOTP     String?         // Delivery confirm ke liye
+
+  notes           String?         // Customer ka special instruction
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("orders")
+}
+
+// ─────────────────────────────────────────
+// ORDER ITEM MODEL
+// ─────────────────────────────────────────
+
+model OrderItem {
+  id          String     @id @default(cuid())
+
+  order       Order      @relation(fields: [orderId], references: [id])
+  orderId     String
+
+  // Either new product OR used phone
+  product     Product?   @relation(fields: [productId], references: [id])
+  productId   String?
+
+  usedPhone   UsedPhone? @relation(fields: [usedPhoneId], references: [id])
+  usedPhoneId String?
+
+  quantity    Int        @default(1)
+  priceAtTime Float      // Order ke waqt ka price — save karo
+
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────
+// REVIEW MODEL
+// ─────────────────────────────────────────
+
+model Review {
+  id         String   @id @default(cuid())
+
+  store      Store    @relation(fields: [storeId], references: [id])
+  storeId    String
+
+  customer   User     @relation(fields: [customerId], references: [id])
+  customerId String
+
+  orderId    String   // Fake reviews rokne ke liye — order hona zaroori
+  rating     Int      // 1-5
+  comment    String?
+
+  createdAt  DateTime @default(now())
+
+  @@map("reviews")
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  tag       String
+  title     String
+  subtitle  String
+  btnText   String
+  link      String
+  image     String?
+  bgFrom    String   @default("from-blue-900")
+  bgTo      String   @default("to-blue-700")
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
