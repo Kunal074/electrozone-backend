@@ -17,6 +17,14 @@ const storeController = {
     success(res, store);
   },
 
+  async getMyStore(storeId) {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+  });
+  if (!store) throw { statusCode: 404, message: "Store nahi mila." };
+  return store;
+},
+
   async updateMyStore(req, res) {
     const storeId = req.user.store.id;
     const store = await storeService.updateMyStore(storeId, req.body);
@@ -44,5 +52,6 @@ const storeController = {
     success(res, store, "Subscription update ho gaya!");
   },
 };
+
 
 module.exports = storeController;
