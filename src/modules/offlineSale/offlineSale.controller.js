@@ -112,4 +112,58 @@ const getMyPurchases = async (req, res) => {
   }
 };
 
-module.exports = { createSale, getStoreSales, getSale, deleteSale, getMyPurchases };
+const tallySync = async (req, res) => {
+  try {
+    const { apiKey, bills } = req.body;
+
+    // API key verify karo
+    const store = await prisma.store.findFirst({
+      where: { tallyApiKey: apiKey }
+    });
+
+    if (!store) return error(res, "Invalid API key", 401);
+
+    // Bills save karo
+    const saved = [];
+    for (const bill of bills) {
+      // Already exists check karo
+      const exists = await prisma.offlineSale.findFirst({
+        where: { tallyVoucherId: bill.voucherId }
+      });
+      if (exists) continue;
+
+      // Customer dhundho
+      const customer = await prisma.user.findUnique({
+        where: { phone: bill.customerPhone }
+      });
+
+      const billNumber = await generateBillNumber(store.id);
+
+      const sale = await prisma.offlineSale.create({
+        data: {
+          billNumber,
+          storeId:       store.id,
+          customerId:    customer?.id || null,
+          customerName:  bill.customerName,
+          customerPhone: bill.customerPhone,
+          customerGstin: bill.customerGstin || null,
+          items:         bill.items,
+          subtotal:      Number(bill.subtotal),
+          discountAmount:Number(bill.discount || 0),
+          gstAmount:     Number(bill.gstAmount || 0),
+          totalAmount:   Number(bill.totalAmount),
+          paymentMode:   bill.paymentMode || "CASH",
+          tallyVoucherId: bill.voucherId,
+          notes:         "Tally Sync",
+        }
+      });
+      saved.push(sale);
+    }
+
+    success(res, { synced: saved.length }, `${saved.length} bills sync ho gaye!`);
+  } catch (err) {
+    error(res, err.message);
+  }
+};
+
+module.exports = { createSale, getStoreSales, getSale, deleteSale, getMyPurchases, tallySync };

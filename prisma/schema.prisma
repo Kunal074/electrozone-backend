@@ -132,6 +132,7 @@ model Store {
   latitude         Float?
   longitude        Float?
   gstNumber        String?          // GST number optional
+  tallyApiKey      String?   @unique // Tally ERP ke liye unique API key
 
   // Delivery Settings
   deliveryRadius   Float            @default(5)   // KM mein
@@ -372,6 +373,7 @@ model Banner {
 model OfflineSale {
   id              String   @id @default(cuid())
   billNumber      String   @unique
+  tallyVoucherId   String?   @unique // Tally ERP ke liye unique voucher ID
   
   // Store
   store           Store    @relation(fields: [storeId], references: [id])
