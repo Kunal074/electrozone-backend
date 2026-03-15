@@ -107,6 +107,7 @@ model User {
   store          Store?    // Store owner ka store
   orders         Order[]
   reviews        Review[]
+  offlineSales    OfflineSale[]
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -162,6 +163,7 @@ model Store {
   usedPhones       UsedPhone[]
   orders           Order[]
   reviews          Review[]
+  offlineSales    OfflineSale[]
 
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
@@ -366,3 +368,39 @@ model Banner {
   updatedAt DateTime @updatedAt
 }
 
+model OfflineSale {
+  id              String   @id @default(cuid())
+  billNumber      String   @unique
+  
+  // Store
+  store           Store    @relation(fields: [storeId], references: [id])
+  storeId         String
+  
+  // Customer
+  customer        User?    @relation(fields: [customerId], references: [id])
+  customerId      String?
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  
+  // Items
+  items           Json     // [{name, qty, price, gst}]
+  
+  // Amounts
+  subtotal        Float
+  discountAmount  Float    @default(0)
+  gstAmount       Float    @default(0)
+  totalAmount     Float
+  
+  // Payment
+  paymentMode     String   @default("CASH")
+  
+  // Bill
+  billImage       String?  // Uploaded bill photo
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("offline_sales")
+}

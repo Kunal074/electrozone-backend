@@ -50,6 +50,7 @@ app.use("/api/used-phones", require("./modules/usedPhone/usedPhone.routes"));
 app.use("/api/orders",      require("./modules/order/order.routes"));
 app.use("/api/payments",    require("./modules/payment/payment.routes"));
 app.use("/api/banners",     require("./modules/banner/banner.routes"));
+app.use("/api/offline-sales", require("./modules/offlineSale/offlineSale.routes"));
 
 // ── ERROR HANDLING ──
 app.use(notFound);
