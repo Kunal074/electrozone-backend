@@ -66,7 +66,7 @@ const storeService = {
       "storeName", "logo", "address", "city", "pincode",
       "phone", "whatsappNumber", "deliveryRadius",
       "deliveryCharge", "isCODAvailable", "codAdvanceAmount",
-      "openTime", "closeTime", "weeklyOff", "latitude", "longitude",
+      "openTime", "closeTime", "weeklyOff", "latitude", "longitude", "gstNumber",
     ];
 
     const updateData = {};

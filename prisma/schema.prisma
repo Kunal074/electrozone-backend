@@ -131,6 +131,7 @@ model Store {
   pincode          String
   latitude         Float?
   longitude        Float?
+  gstNumber        String?          // GST number optional
 
   // Delivery Settings
   deliveryRadius   Float            @default(5)   // KM mein
