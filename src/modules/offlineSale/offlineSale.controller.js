@@ -12,9 +12,8 @@ const generateBillNumber = async (storeId) => {
 
 const createSale = async (req, res) => {
   try {
-    const { customerName, customerPhone, customerEmail, items, subtotal, discountAmount, gstAmount, totalAmount, paymentMode, billImage, notes } = req.body;
+    const { customerName, customerPhone, customerEmail, customerGstin, items, subtotal, discountAmount, gstAmount, totalAmount, paymentMode, billImage, notes } = req.body;
 
-    // Customer dhundho by phone
     const customer = await prisma.user.findUnique({
       where: { phone: customerPhone }
     });
@@ -24,19 +23,20 @@ const createSale = async (req, res) => {
     const sale = await prisma.offlineSale.create({
       data: {
         billNumber,
-        storeId:       req.user.store.id,
-        customerId:    customer?.id || null,
+        storeId:        req.user.store.id,
+        customerId:     customer?.id || null,
         customerName,
         customerPhone,
-        customerEmail: customerEmail || null,
+        customerEmail:  customerEmail  || null,
+        customerGstin:  customerGstin  || null,
         items,
-        subtotal:      Number(subtotal),
+        subtotal:       Number(subtotal),
         discountAmount: Number(discountAmount || 0),
-        gstAmount:     Number(gstAmount || 0),
-        totalAmount:   Number(totalAmount),
-        paymentMode:   paymentMode || "CASH",
-        billImage:     billImage || null,
-        notes:         notes || null,
+        gstAmount:      Number(gstAmount || 0),
+        totalAmount:    Number(totalAmount),
+        paymentMode:    paymentMode || "CASH",
+        billImage:      billImage || null,
+        notes:          notes     || null,
       }
     });
 
