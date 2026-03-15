@@ -2,7 +2,6 @@ const storeService = require("./store.service");
 const { success, paginated } = require("../../utils/apiResponse");
 
 const storeController = {
-
   async getStores(req, res) {
     const result = await storeService.getStores(req.query);
     paginated(res, result.stores, {
@@ -18,12 +17,12 @@ const storeController = {
   },
 
   async getMyStore(storeId) {
-  const store = await prisma.store.findUnique({
-    where: { id: storeId },
-  });
-  if (!store) throw { statusCode: 404, message: "Store nahi mila." };
-  return store;
-},
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+    });
+    if (!store) throw { statusCode: 404, message: "Store nahi mila." };
+    return store;
+  },
 
   async updateMyStore(req, res) {
     const storeId = req.user.store.id;
@@ -48,10 +47,36 @@ const storeController = {
 
   async updateSubscription(req, res) {
     const { plan, expiryDays } = req.body;
-    const store = await storeService.updateSubscription(req.params.id, plan, expiryDays);
+    const store = await storeService.updateSubscription(
+      req.params.id,
+      plan,
+      expiryDays,
+    );
     success(res, store, "Subscription update ho gaya!");
   },
-};
 
+  async generateTallyKey(req, res) {
+    const crypto = require("crypto");
+    const apiKey =
+      "TALLY-" + crypto.randomBytes(16).toString("hex").toUpperCase();
+    const store = await prisma.store.update({
+      where: { id: req.params.id },
+      data: { tallyApiKey: apiKey },
+    });
+    success(
+      res,
+      { tallyApiKey: store.tallyApiKey },
+      "Tally API Key generate ho gaya!",
+    );
+  },
+
+  async getMyTallyKey(req, res) {
+    const store = await prisma.store.findUnique({
+      where: { id: req.user.store.id },
+      select: { tallyApiKey: true, storeName: true },
+    });
+    success(res, store);
+  },
+};
 
 module.exports = storeController;
