@@ -383,6 +383,7 @@ model OfflineSale {
   customerName    String
   customerPhone   String
   customerEmail   String?
+  customerGstin   String?
   
   // Items
   items           Json     // [{name, qty, price, gst}]
