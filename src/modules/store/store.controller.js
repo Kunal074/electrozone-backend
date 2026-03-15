@@ -1,3 +1,5 @@
+const { prisma } = require("../../config/db");
+
 const storeService = require("./store.service");
 const { success, paginated } = require("../../utils/apiResponse");
 
@@ -16,13 +18,13 @@ const storeController = {
     success(res, store);
   },
 
-  async getMyStore(storeId) {
-    const store = await prisma.store.findUnique({
-      where: { id: storeId },
-    });
-    if (!store) throw { statusCode: 404, message: "Store nahi mila." };
-    return store;
-  },
+  async getMyStore(req, res) {
+  const store = await prisma.store.findUnique({
+    where: { id: req.user.store.id },
+  });
+  if (!store) return require("../../utils/apiResponse").error(res, "Store nahi mila", 404);
+  success(res, store);
+},
 
   async updateMyStore(req, res) {
     const storeId = req.user.store.id;
