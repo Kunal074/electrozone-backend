@@ -112,37 +112,80 @@ const usedPhoneService = {
     return await prisma.usedPhone.update({ where: { id }, data });
   },
 
+  
   // ── Delete Used Phone ──
-  async deleteUsedPhone(id, user) {
-    const usedPhone = await prisma.usedPhone.findUnique({ where: { id } });
-    if (!usedPhone) throw { statusCode: 404, message: "Used phone nahi mila." };
+async deleteUsedPhone(id, user) {
+  const usedPhone = await prisma.usedPhone.findUnique({ where: { id } });
+  if (!usedPhone) throw { statusCode: 404, message: "Used phone nahi mila." };
 
-    if (user.role === "STORE_OWNER" && usedPhone.storeId !== user.store.id) {
-      throw { statusCode: 403, message: "Yeh aapka listing nahi hai." };
+  if (user.role === "STORE_OWNER" && usedPhone.storeId !== user.store.id) {
+    throw { statusCode: 403, message: "Yeh aapka listing nahi hai." };
+  }
+
+  // Cloudinary se images delete karo
+  if (usedPhone.images?.length > 0) {
+    const { deleteImage } = require("../../config/cloudinary");
+    for (const imageUrl of usedPhone.images) {
+      try {
+        const parts   = imageUrl.split("/");
+        const upload  = parts.indexOf("upload");
+        if (upload !== -1) {
+          const afterUpload = parts.slice(upload + 1);
+          if (afterUpload[0]?.startsWith("v")) afterUpload.shift();
+          const publicId = afterUpload.join("/").replace(/\.[^/.]+$/, "");
+          await deleteImage(publicId);
+          console.log(`🗑️ Deleted: ${publicId}`);
+        }
+      } catch (err) {
+        console.log(`⚠️ Image delete failed: ${err.message}`);
+      }
     }
+  }
 
-    await prisma.usedPhone.update({
-      where: { id },
-      data: { isAvailable: false },
-    });
+  // Database se permanently delete karo
+  await prisma.usedPhone.delete({ where: { id } });
 
-    return { message: "Listing remove ho gaya." };
-  },
+  return { message: "Listing aur images delete ho gayi!" };
+},
 
+  
   // ── Mark As Sold ──
-  async markAsSold(id, user) {
-    const usedPhone = await prisma.usedPhone.findUnique({ where: { id } });
-    if (!usedPhone) throw { statusCode: 404, message: "Used phone nahi mila." };
+async markAsSold(id, user) {
+  const usedPhone = await prisma.usedPhone.findUnique({ where: { id } });
+  if (!usedPhone) throw { statusCode: 404, message: "Used phone nahi mila." };
 
-    if (user.role === "STORE_OWNER" && usedPhone.storeId !== user.store.id) {
-      throw { statusCode: 403, message: "Yeh aapka listing nahi hai." };
+  if (user.role === "STORE_OWNER" && usedPhone.storeId !== user.store.id) {
+    throw { statusCode: 403, message: "Yeh aapka listing nahi hai." };
+  }
+
+  // ── Cloudinary se images delete karo ──
+  if (usedPhone.images?.length > 0) {
+    const { deleteImage } = require("../../config/cloudinary");
+    for (const imageUrl of usedPhone.images) {
+      try {
+        // URL se public_id nikalo
+        // URL format: https://res.cloudinary.com/cloud/image/upload/v123/folder/filename.jpg
+        const parts   = imageUrl.split("/");
+        const upload  = parts.indexOf("upload");
+        if (upload !== -1) {
+          // version skip karo (v123)
+          const afterUpload = parts.slice(upload + 1);
+          if (afterUpload[0]?.startsWith("v")) afterUpload.shift();
+          const publicId = afterUpload.join("/").replace(/\.[^/.]+$/, "");
+          await deleteImage(publicId);
+          console.log(`🗑️ Deleted: ${publicId}`);
+        }
+      } catch (err) {
+        console.log(`⚠️ Image delete failed: ${err.message}`);
+      }
     }
+  }
 
-    return await prisma.usedPhone.update({
-      where: { id },
-      data: { isAvailable: false },
-    });
-  },
+  // ── Database se bhi permanently delete karo ──
+  await prisma.usedPhone.delete({ where: { id } });
+
+  return { message: "Phone sold mark ho gaya aur images delete ho gayi!" };
+},
 };
 
 module.exports = usedPhoneService;
