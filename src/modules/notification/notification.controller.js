@@ -56,25 +56,40 @@ const sendNotification = async (req, res) => {
       messages,
       {
         headers: {
-          "Accept":            "application/json",
-          "Accept-Encoding":   "gzip, deflate",
-          "Content-Type":      "application/json",
+          "Accept":          "application/json",
+          "Accept-Encoding": "gzip, deflate",
+          "Content-Type":    "application/json",
         }
       }
     );
 
     console.log(`✅ Expo response:`, JSON.stringify(expRes.data));
 
+    // Save karo
     await prisma.notification.create({
       data: {
         title,
         body,
-        imageUrl: imageUrl || null,
-        data:     data    || {},
-        sentBy:   req.user.id,
+        imageUrl:  imageUrl || null,
+        data:      data     || {},
+        sentBy:    req.user.id,
         totalSent: tokens.length,
       }
     });
+
+    // Auto cleanup — sirf 5 rakho
+    const total = await prisma.notification.count();
+    if (total > 5) {
+      const old = await prisma.notification.findMany({
+        orderBy: { sentAt: "desc" },
+        skip:    5,
+        select:  { id: true },
+      });
+      await prisma.notification.deleteMany({
+        where: { id: { in: old.map(n => n.id) } }
+      });
+      console.log(`🗑️ Deleted ${total - 5} old notifications`);
+    }
 
     success(res, { totalSent: tokens.length }, `Notification ${tokens.length} devices pe bhej di!`);
   } catch (err) {
@@ -83,12 +98,12 @@ const sendNotification = async (req, res) => {
   }
 };
 
-// ── Notification History ──
+// ── Notification History — Latest 5 only ──
 const getHistory = async (req, res) => {
   try {
     const notifications = await prisma.notification.findMany({
       orderBy: { sentAt: "desc" },
-      take: 50,
+      take:    5,
     });
     success(res, notifications);
   } catch (err) {
@@ -101,8 +116,8 @@ const getLatest = async (req, res) => {
   try {
     const notifications = await prisma.notification.findMany({
       orderBy: { sentAt: "desc" },
-      take: 10,
-      select: { title: true, body: true, imageUrl: true, sentAt: true }
+      take:    5,
+      select:  { title: true, body: true, imageUrl: true, sentAt: true }
     });
     success(res, notifications);
   } catch (err) {
