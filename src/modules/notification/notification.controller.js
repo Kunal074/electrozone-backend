@@ -30,16 +30,16 @@ const sendNotification = async (req, res) => {
 
     if (!title || !body) return error(res, "Title aur body zaroori hai", 400);
 
-    // Saare tokens fetch karo
     const tokens = await prisma.pushToken.findMany({
       select: { token: true }
     });
+
+    console.log(`📱 Tokens found: ${tokens.length}`);
 
     if (tokens.length === 0) {
       return error(res, "Koi registered device nahi mila", 400);
     }
 
-    // Expo Push Notification format
     const messages = tokens.map(({ token }) => ({
       to:    token,
       sound: "default",
@@ -49,28 +49,22 @@ const sendNotification = async (req, res) => {
       ...(imageUrl && { image: imageUrl }),
     }));
 
-    // Expo server pe bhejo — batch mein (max 100)
-    const batches = [];
-    for (let i = 0; i < messages.length; i += 100) {
-      batches.push(messages.slice(i, i + 100));
-    }
+    console.log(`📤 Sending messages:`, JSON.stringify(messages));
 
-    let totalSent = 0;
-    for (const batch of batches) {
-      const expRes = await axios.post(
-        "https://exp.host/--/api/v2/push/send",
-        batch,
-        {
-          headers: {
-            "Accept":       "application/json",
-            "Content-Type": "application/json",
-          }
+    const expRes = await axios.post(
+      "https://exp.host/--/api/v2/push/send",
+      messages,
+      {
+        headers: {
+          "Accept":            "application/json",
+          "Accept-Encoding":   "gzip, deflate",
+          "Content-Type":      "application/json",
         }
-      );
-      totalSent += batch.length;
-    }
+      }
+    );
 
-    // History mein save karo
+    console.log(`✅ Expo response:`, JSON.stringify(expRes.data));
+
     await prisma.notification.create({
       data: {
         title,
@@ -78,12 +72,13 @@ const sendNotification = async (req, res) => {
         imageUrl: imageUrl || null,
         data:     data    || {},
         sentBy:   req.user.id,
-        totalSent,
+        totalSent: tokens.length,
       }
     });
 
-    success(res, { totalSent }, `Notification ${totalSent} devices pe bhej di!`);
+    success(res, { totalSent: tokens.length }, `Notification ${tokens.length} devices pe bhej di!`);
   } catch (err) {
+    console.error("❌ Send error:", err.message);
     error(res, err.message);
   }
 };
