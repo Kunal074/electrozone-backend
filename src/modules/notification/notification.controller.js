@@ -30,6 +30,12 @@ const sendNotification = async (req, res) => {
 
     if (!title || !body) return error(res, "Title aur body zaroori hai", 400);
 
+    // Store name fetch karo
+    const store = await prisma.store.findUnique({
+      where:  { ownerId: req.user.id },
+      select: { storeName: true, id: true }
+    });
+
     const tokens = await prisma.pushToken.findMany({
       select: { token: true }
     });
@@ -40,11 +46,13 @@ const sendNotification = async (req, res) => {
       return error(res, "Koi registered device nahi mila", 400);
     }
 
+    const storeName = store?.storeName || "ElectroZone";
+
     const messages = tokens.map(({ token }) => ({
       to:    token,
       sound: "default",
       title,
-      body,
+      body:  `🏪 ${storeName}\n${body}`,
       data:  data || {},
       ...(imageUrl && { image: imageUrl }),
     }));
@@ -65,7 +73,7 @@ const sendNotification = async (req, res) => {
 
     console.log(`✅ Expo response:`, JSON.stringify(expRes.data));
 
-    // Save karo
+    // History mein save karo
     await prisma.notification.create({
       data: {
         title,
