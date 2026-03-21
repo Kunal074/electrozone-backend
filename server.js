@@ -11,9 +11,13 @@ const PORT = process.env.PORT || 5000;
 const start = async () => {
   try {
     // Auto migrate on startup
-    console.log("🔄 Running migrations...");
-    execSync("npx prisma migrate deploy", { stdio: "inherit" });
-    console.log("✅ Migrations done!");
+    try {
+      console.log("🔄 Running migrations...");
+      execSync("npx prisma migrate deploy", { stdio: "inherit" });
+      console.log("✅ Migrations done!");
+    } catch (migrateErr) {
+      console.log("⚠️ Migration skip — continuing anyway!");
+    }
 
     await connectDB();
     app.listen(PORT, () => {
