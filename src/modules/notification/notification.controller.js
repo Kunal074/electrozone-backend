@@ -5,6 +5,7 @@ const axios              = require("axios");
 // ── Push Token Register ──
 const registerToken = async (req, res) => {
   try {
+    console.log("📱 Token register request:", req.body);
     const { token } = req.body;
     if (!token) return error(res, "Token zaroori hai", 400);
 
@@ -14,8 +15,10 @@ const registerToken = async (req, res) => {
       create: { token, userId: req.user?.id || null },
     });
 
+    console.log("✅ Token saved:", token);
     success(res, null, "Token registered!");
   } catch (err) {
+    console.error("❌ Token save error:", err.message);
     error(res, err.message);
   }
 };
